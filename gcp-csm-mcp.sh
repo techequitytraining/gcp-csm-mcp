@@ -1851,8 +1851,6 @@ do
         echo
         echo "$ kubectl label namespace bank-of-anthos istio.io/rev=\$ASM_REVISION --overwrite # to label namespace" | pv -qL 100
         echo
-        echo "$ kubectl apply -f \$PROJDIR/bank-of-anthos/istio-manifests # to configure gateway" | pv -qL 100
-        echo
         echo "$ kubectl -n bank-of-anthos apply -f \$PROJDIR/bank-of-anthos/extras/jwt/jwt-secret.yaml # to configure secret used for user account creation and authentication" | pv -qL 100
         echo
         echo "$ kubectl -n bank-of-anthos apply -f \$PROJDIR/bank-of-anthos/kubernetes-manifests # to deploy manifests to clusters" | pv -qL 100
@@ -1910,9 +1908,6 @@ do
         echo "$ kubectl label namespace bank-of-anthos istio.io/rev=$ASM_REVISION --overwrite # to label namespace" | pv -qL 100
         kubectl label namespace bank-of-anthos istio.io/rev=$ASM_REVISION --overwrite
         echo
-        echo "$ kubectl apply -f $PROJDIR/bank-of-anthos/istio-manifests # to configure gateway" | pv -qL 100
-        kubectl apply -f $PROJDIR/bank-of-anthos/istio-manifests
-        echo
         echo "$ kubectl -n bank-of-anthos apply -f $PROJDIR/bank-of-anthos/extras/jwt/jwt-secret.yaml # to configure secret used for user account creation and authentication" | pv -qL 100
         kubectl -n bank-of-anthos apply -f $PROJDIR/bank-of-anthos/extras/jwt/jwt-secret.yaml
         echo
@@ -1948,9 +1943,6 @@ do
         echo
         echo "$ kubectl delete namespace bank-of-anthos # to delete namespace" | pv -qL 100
         kubectl delete namespace bank-of-anthos
-        echo
-        echo "$ kubectl delete -f $PROJDIR/bank-of-anthos/istio-manifests # to delete gateway" | pv -qL 100
-        kubectl delete -f $PROJDIR/bank-of-anthos/istio-manifests
         echo
         echo "$ rm -rf  $PROJDIR/anthos-service-mesh-packages # to remove repo" | pv -qL 100
         rm -rf $PROJDIR/anthos-service-mesh-packages
