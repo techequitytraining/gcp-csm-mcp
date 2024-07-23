@@ -1,4 +1,4 @@
-# Google Cloud Service Mesh with Multiple Control Plane Demo
+# Single Network, Cloud Service Mesh with Multiple Control Plane Demo
 
 ## 🌐 Explore Highly Scalable and Redundant Multi-Cluster Deployments
 
