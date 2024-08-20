@@ -73,9 +73,9 @@ export GCP_REGION_2=europe-west3
 export GCP_ZONE_2=europe-west3-a
 export GCP_MACHINE_2=e2-standard-2
 export APPLICATION_NAME=dual-control-plane
-export ISTIO_VERSION=1.21.4 # https://github.com/istio/istio/releases
-export ASM_VERSION=1.21.4-asm.5 # https://cloud.google.com/service-mesh/docs/release-notes
-export ASM_INSTALL_SCRIPT_VERSION=1.21 
+export ISTIO_VERSION=1.22.3 # https://github.com/istio/istio/releases
+export ASM_VERSION=1.22.3-asm.1 # https://cloud.google.com/service-mesh/docs/release-notes
+export ASM_INSTALL_SCRIPT_VERSION=1.22
 EOF
 source $PROJDIR/.env
 fi
@@ -92,7 +92,6 @@ cat<<EOF
 Menu for Dual Control Plane Anthos Service Mesh Configuration  
 --------------------------------------------------------------
 Please enter number to select your choice:
- (0) Switch between Preview, Create and Delete modes
  (1) Install tools
  (2) Enable APIs
  (3) Create network
