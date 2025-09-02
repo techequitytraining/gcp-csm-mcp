@@ -99,6 +99,7 @@ Please enter number to select your choice:
  (5) Create firewall rules
  (6) Install ASM components
  (7) Configure application
+ (8) Configure multi cluster ingress 
  (Q) Quit
 --------------------------------------------------------------
 EOF
@@ -489,6 +490,14 @@ do
         echo "$ kubectl config use-context \$CTX # to set context" | pv -qL 100
         echo      
         echo "$ kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=\$(gcloud config get-value core/account) # to enable current user to set RBAC rules for Istio" | pv -qL 100
+        if [ $i -eq 1 ]; then
+            echo
+            echo "$ kubectl kustomize \"github.com/kubernetes-sigs/gateway-api/config/crd?ref=v0.3.0\" | kubectl apply -f - --context=gke-west-1 # to deploy Gateway resources" | pv -qL 100
+            echo
+            echo "$ gcloud alpha container hub ingress enable --config-membership=projects/\$PROJECT_ID/locations/\$REGION/memberships/\$CLUSTER --quiet --project \$PROJECT_ID # to enable Multi-cluster Gateway controller and select config cluster" | pv -qL 100
+            echo
+            echo "gcloud projects add-iam-policy-binding \${PROJECT_ID} --member \"serviceAccount:service-\${PROJECT_ID_NUMBER}@gcp-sa-multiclusteringress.iam.gserviceaccount.com\" --role \"roles/container.admin\" --project=\${PROJECT_ID} # to grant IAM permissions required by Gateway controller" | pv -qL 100
+        fi
     elif [ $MODE -eq 2 ]; then
         export STEP="${STEP},4(${i})"   
         export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
@@ -531,6 +540,17 @@ do
         gcloud --project $PROJECT container clusters get-credentials $CLUSTER --zone $ZONE > /dev/null 2>&1
         echo "$ kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=\$(gcloud config get-value core/account) # to enable current user to set RBAC rules for Istio" | pv -qL 100
         kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value core/account) 2>/dev/null
+        if [ $i -eq 1 ]; then
+            echo
+            echo "$ kubectl kustomize \"github.com/kubernetes-sigs/gateway-api/config/crd?ref=v0.3.0\" | kubectl apply -f - --context=gke-west-1 # to deploy Gateway resources" | pv -qL 100
+            kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v0.3.0" | kubectl apply -f - --context=$CTX
+            echo
+            echo "$ gcloud alpha container hub ingress enable --config-membership=projects/$PROJECT/locations/$REGION/memberships/$CLUSTER --quiet --project $PROJECT # to enable Multi-cluster Gateway controller and select config cluster" | pv -qL 100
+            gcloud alpha container hub ingress enable --config-membership=projects/$PROJECT/locations/$REGION/memberships/$CLUSTER --quiet --project $PROJECT
+            echo
+            echo "gcloud projects add-iam-policy-binding ${PROJECT} --member \"serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-multiclusteringress.iam.gserviceaccount.com\" --role \"roles/container.admin\" --project=${PROJECT} # to grant IAM permissions required by Gateway controller" | pv -qL 100
+            gcloud projects add-iam-policy-binding ${PROJECT} --member "serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-multiclusteringress.iam.gserviceaccount.com" --role "roles/container.admin" --project=${PROJECT}
+        fi
     elif [ $MODE -eq 3 ]; then
         export STEP="${STEP},4x(${i})"   
         export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
@@ -566,7 +586,41 @@ do
             echo "$ gcloud --project $PROJECT beta container clusters delete $CLUSTER --zone $ZONE # to delete cluster" | pv -qL 100
             gcloud --project $PROJECT beta container clusters delete $CLUSTER --zone $ZONE
         fi
-    else
+        echo
+        echo "$ kubectl config use-context $CTX # to set context" | pv -qL 100
+        kubectl config use-context $CTX 
+        echo
+        echo "$ gcloud container clusters get-credentials $CLUSTER --zone $ZONE --project $PROJECT # to retrieve the credentials for cluster" | pv -qL 100
+        gcloud container clusters get-credentials $CLUSTER --zone $ZONE --project $PROJECT
+        echo
+        echo "$ kubectl delete clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=\$(gcloud config get-value core/account) # to remove cluster admin priviledges" | pv -qL 100
+        kubectl delete clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value core/account) 
+        echo
+        echo "$ gcloud projects remove-iam-policy-binding ${PROJECT} --member \"serviceAccount:${PROJECT}.svc.id.goog[gke-mcs/gke-mcs-importer]\" --role \"roles/compute.networkViewer\" --project=${PROJECT} # to remove IAM permissions for MCS" | pv -qL 100
+        gcloud projects remove-iam-policy-binding ${PROJECT} --member "serviceAccount:${PROJECT}.svc.id.goog[gke-mcs/gke-mcs-importer]" --role "roles/compute.networkViewer" --project=${PROJECT}
+        echo
+        echo "$ gcloud container hub multi-cluster-services disable --project $PROJECT # to enable MCS" | pv -qL 100
+        gcloud container hub multi-cluster-services disable --project $PROJECT
+        echo
+        gcloud container fleet memberships delete $CLUSTER --quiet --project $PROJECT > /dev/null 2>&1 
+        echo "$ gcloud container hub memberships register $CLUSTER --project=$PROJECT --gke-cluster=$ZONE/$CLUSTER --enable-workload-identity --project $PROJECT" | pv -qL 100
+        gcloud container hub memberships register $CLUSTER --project=$PROJECT --gke-cluster=$ZONE/$CLUSTER --enable-workload-identity --project $PROJECT
+        echo
+        echo "$ gcloud projects remove-iam-policy-binding $PROJECT --member user:\"\$(gcloud config get-value core/account)\" --role=roles/editor --role=roles/compute.admin --role=roles/container.admin --role=roles/resourcemanager.projectIamAdmin --role=roles/iam.serviceAccountAdmin --role=roles/iam.serviceAccountKeyAdmin --role=roles/gkehub.admin --project $PROJECT_ID # to ensure user is able to register and connect cluster" | pv -qL 100
+        gcloud projects remove-iam-policy-binding $PROJECT --member user:"$(gcloud config get-value core/account)" --role=roles/editor --role=roles/compute.admin --role=roles/container.admin --role=roles/resourcemanager.projectIamAdmin --role=roles/iam.serviceAccountAdmin --role=roles/iam.serviceAccountKeyAdmin --role=roles/gkehub.admin --project $PROJECT
+
+        if [ $i -eq 1 ]; then
+            echo
+            echo "$ gcloud projects remove-iam-policy-binding ${PROJECT} --member \"serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-multiclusteringress.iam.gserviceaccount.com\" --role \"roles/container.admin\" --project=${PROJECT} # to remove IAM permissions" | pv -qL 100
+            gcloud projects remove-iam-policy-binding ${PROJECT} --member "serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-multiclusteringress.iam.gserviceaccount.com" --role "roles/container.admin" --project=${PROJECT}
+            echo
+            echo "$ gcloud alpha container hub ingress disable --quiet --project $PROJECT # to enable Multi-cluster Gateway controller and select config cluster" | pv -qL 100
+            gcloud alpha container hub ingress disable --quiet --project $PROJECT
+            echo
+            echo "$ kubectl kustomize \"github.com/kubernetes-sigs/gateway-api/config/crd?ref=v0.3.0\" | kubectl delete -f - --context=gke-west-1 # to deploy Gateway resources"
+            kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v0.3.0" | kubectl delete -f - --context=$CTX
+        fi
+        else
         export STEP="${STEP},4i"
         echo
         echo "1. Create cluster" | pv -qL 100
@@ -1957,6 +2011,201 @@ do
         echo "4. Apply manifest" | pv -qL 100
     fi
 done
+end=`date +%s`
+echo
+echo Execution time was `expr $end - $start` seconds.
+echo
+read -n 1 -s -r -p "$ "
+;;
+
+"8")
+start=`date +%s`
+source $PROJDIR/.env
+if [ $MODE -eq 1 ]; then
+    export STEP="${STEP},6i"
+    echo
+    echo "$ kubectl -n default apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: hipster-mcs
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: \"\$CONFIG_ZONE/\$CONFIG_CLUSTER\"
+  - link: \"\$REMOTE_ZONE/\$REMOTE_CLUSTER\"
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n default apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: hipster-mci
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: hipster-mcs
+        servicePort: 80
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n default describe MultiClusterIngress hipster-mci # to view ingress configuration" | pv -qL 100
+elif [ $MODE -eq 2 ]; then
+    export STEP="${STEP},6"
+    for i in 1 2 
+    do
+        if [ $i -eq 1 ]; then
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export CONFIG_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export CONFIG_CTX="${CTX}" > /dev/null 2>&1
+            export CONFIG_ZONE=${ZONE} > /dev/null 2>&1
+        else
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export REMOTE_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export REMOTE_CTX="${CTX}" > /dev/null 2>&1
+            export REMOTE_ZONE=${ZONE} > /dev/null 2>&1
+        fi
+    done 
+    gcloud config set project $PROJECT > /dev/null 2>&1
+    kubectl config use-context ${CONFIG_CTX} > /dev/null 2>&1
+    gcloud container clusters get-credentials ${CONFIG_CLUSTER} --zone ${CONFIG_ZONE} --project $PROJECT_ID > /dev/null 2>&1
+    echo
+    echo "$ kubectl -n default apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: hipster-mcs
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: \"$CONFIG_ZONE/$CONFIG_CLUSTER\"
+  - link: \"$REMOTE_ZONE/$REMOTE_CLUSTER\"
+EOF" | pv -qL 100
+    kubectl -n default apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: hipster-mcs
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: "$CONFIG_ZONE/$CONFIG_CLUSTER"
+  - link: "$REMOTE_ZONE/$REMOTE_CLUSTER"
+EOF
+    echo
+    echo "$ kubectl -n default apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: hipster-mci
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: hipster-mcs
+        servicePort: 80
+EOF" | pv -qL 100
+    kubectl -n default apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: hipster-mci
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: hipster-mcs
+        servicePort: 80
+EOF
+    sleep 30
+    echo
+    echo "$ kubectl -n default describe MultiClusterIngress hipster-mci # to view ingress configuration" | pv -qL 100
+    kubectl -n default describe MultiClusterIngress hipster-mci
+    echo
+    echo "It may take up to 10 mins for ingress to be ready" | pv -qL 100
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},6x"
+    for i in 1 2 
+    do
+        if [ $i -eq 1 ]; then
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export CONFIG_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export CONFIG_CTX="${CTX}" > /dev/null 2>&1
+            export CONFIG_ZONE=${ZONE} > /dev/null 2>&1
+        else
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export REMOTE_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export REMOTE_CTX="${CTX}" > /dev/null 2>&1
+            export REMOTE_ZONE=${ZONE} > /dev/null 2>&1
+        fi
+    done 
+    gcloud config set project $PROJECT > /dev/null 2>&1
+    kubectl config use-context ${CONFIG_CTX} > /dev/null 2>&1
+    gcloud container clusters get-credentials ${CONFIG_CLUSTER} --zone ${CONFIG_ZONE} --project $PROJECT_ID > /dev/null 2>&1
+    echo
+    echo "$ kubectl -n default delete MultiClusterService hipster-mcs # to delete MCS"
+    kubectl -n default delete MultiClusterService hipster-mcs
+    echo
+    echo "$ kubectl -n default delete MultiClusterIngress hipster-mci # to delete MCI"
+    kubectl -n default delete MultiClusterIngress hipster-mci
+else
+    export STEP="${STEP},6i"
+    echo
+    echo "1. Configure Multi Cluster Service" | pv -qL 100
+    echo "2. View ingress configuration" | pv -qL 100
+fi
 end=`date +%s`
 echo
 echo Execution time was `expr $end - $start` seconds.
