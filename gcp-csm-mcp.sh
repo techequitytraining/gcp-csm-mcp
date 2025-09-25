@@ -526,12 +526,12 @@ do
         export WORKLOAD_POOL=${PROJECT}.svc.id.goog
         if [ "$i" -eq 1 ]; then
             echo
-            echo "$ gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE --machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot # to create cluster" | pv -qL 100
-            gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE --machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot
+            echo "$ gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE --machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot --enable-fleet --fleet-project=$PROJECT # to create cluster" | pv -qL 100
+            gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE --machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot --enable-fleet --fleet-project=$PROJECT
         else
             echo
-            echo "$ gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE--machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot # to create cluster" | pv -qL 100
-            gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE --machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot
+            echo "$ gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE--machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot --enable-fleet --fleet-project=$PROJECT # to create cluster" | pv -qL 100
+            gcloud --project $PROJECT beta container clusters create $CLUSTER --zone $ZONE --machine-type=e2-standard-2 --num-nodes=3 --workload-pool=${WORKLOAD_POOL} --network=$APPLICATION_NAME-net --subnetwork=$APPLICATION_NAME-subnet-${i} --labels=mesh_id=${MESH_ID},location=$REGION --spot --enable-fleet --fleet-project=$PROJECT
         fi
         echo
         echo "$ kubectl config use-context $CTX # to set context" | pv -qL 100
