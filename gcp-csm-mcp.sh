@@ -2022,7 +2022,7 @@ read -n 1 -s -r -p "$ "
 start=`date +%s`
 source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
-    export STEP="${STEP},6i"
+    export STEP="${STEP},8i"
     echo
     echo "$ kubectl -n default apply -f - <<EOF
 apiVersion: networking.gke.io/v1
@@ -2059,7 +2059,7 @@ EOF" | pv -qL 100
     echo
     echo "$ kubectl -n default describe MultiClusterIngress hipster-mci # to view ingress configuration" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
-    export STEP="${STEP},6"
+    export STEP="${STEP},8"
     for i in 1 2 
     do
         if [ $i -eq 1 ]; then
@@ -2162,7 +2162,7 @@ EOF
     echo
     echo "It may take up to 10 mins for ingress to be ready" | pv -qL 100
 elif [ $MODE -eq 3 ]; then
-    export STEP="${STEP},6x"
+    export STEP="${STEP},8x"
     for i in 1 2 
     do
         if [ $i -eq 1 ]; then
