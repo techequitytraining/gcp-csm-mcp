@@ -99,13 +99,23 @@ spec:
 
 ### ✅ Correct Configurations
 
-1. **Label Matching**: The MultiClusterService selector (`app: frontend`) correctly matches the Frontend Deployment labels
-2. **Port Mapping**: The port chain is correctly configured:
+1. **Namespace Alignment** (CRITICAL): All resources are correctly deployed to the same namespace (`default`):
+   - Frontend Deployment: `default` (gcp-csm-mcp.sh:1849)
+   - Frontend Service: `default` (gcp-csm-mcp.sh:1849)
+   - MultiClusterService: `default` (gcp-csm-mcp.sh:2098)
+   - MultiClusterIngress: `default` (gcp-csm-mcp.sh:2137)
+   - **Why this matters**: MCS can only discover Services in the same namespace. Cross-namespace references are not supported by MultiClusterIngress.
+
+2. **Label Matching**: The MultiClusterService selector (`app: frontend`) correctly matches the Frontend Deployment labels
+
+3. **Port Mapping**: The port chain is correctly configured:
    - MCI → MCS: port 80
    - MCS → Service: port 80 → targetPort 8080
    - Service → Pod: targetPort 8080 → containerPort 8080
-3. **Multi-Cluster Setup**: Both clusters are properly referenced in the MCS clusters list
-4. **Pod Health Probes**: The frontend pods have readiness and liveness probes configured on `/_healthz`
+
+4. **Multi-Cluster Setup**: Both clusters are properly referenced in the MCS clusters list
+
+5. **Pod Health Probes**: The frontend pods have readiness and liveness probes configured on `/_healthz`
 
 ### ⚠️ Critical Issues
 

@@ -1,5 +1,9 @@
 # Recommended Fixes for Multi-Cluster Ingress Routing
 # Apply these configurations to enable proper health checking and traffic routing
+#
+# CRITICAL: All resources MUST be in the same namespace as the application.
+# MultiClusterService can only discover Services in the same namespace.
+# Cross-namespace references are NOT supported.
 
 ---
 # BackendConfig with proper health check configuration
@@ -7,7 +11,7 @@ apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
   name: frontend-backendconfig
-  namespace: default
+  namespace: default  # MUST match application namespace
 spec:
   # Health check configuration matching the pod's readiness probe
   healthCheck:
@@ -34,7 +38,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
-  namespace: default
+  namespace: default  # MUST match MCS namespace
   annotations:
     # Enable Network Endpoint Groups for direct pod-level routing
     cloud.google.com/neg: '{"ingress": true}'
@@ -56,7 +60,7 @@ apiVersion: networking.gke.io/v1
 kind: MultiClusterIngress
 metadata:
   name: hipster-mci
-  namespace: default
+  namespace: default  # MUST match MCS namespace
   annotations:
     # Optional: Configure static IP (replace with your reserved IP)
     # networking.gke.io/static-ip: "your-static-ip-name"
