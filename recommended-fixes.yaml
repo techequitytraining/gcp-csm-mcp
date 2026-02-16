@@ -1,0 +1,70 @@
+# Recommended Fixes for Multi-Cluster Ingress Routing
+# Apply these configurations to enable proper health checking and traffic routing
+
+---
+# BackendConfig with proper health check configuration
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: default
+spec:
+  # Health check configuration matching the pod's readiness probe
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /_healthz
+    port: 8080
+  # Timeout configuration to prevent premature connection termination
+  timeoutSec: 30
+  # Connection draining for graceful pod termination
+  connectionDraining:
+    drainingTimeoutSec: 60
+  # Enable logging for troubleshooting
+  logging:
+    enable: true
+    sampleRate: 1.0
+
+---
+# Updated Frontend Service with BackendConfig and NEG annotations
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: default
+  annotations:
+    # Enable Network Endpoint Groups for direct pod-level routing
+    cloud.google.com/neg: '{"ingress": true}'
+    # Reference the BackendConfig for health check configuration
+    cloud.google.com/backend-config: '{"default": "frontend-backendconfig"}'
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+# Optional: MultiClusterIngress with additional annotations for production
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: hipster-mci
+  namespace: default
+  annotations:
+    # Optional: Configure static IP (replace with your reserved IP)
+    # networking.gke.io/static-ip: "your-static-ip-name"
+    # Optional: Enable SSL (requires certificate)
+    # networking.gke.io/pre-shared-certs: "your-cert-name"
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: hipster-mcs
+        servicePort: 80
