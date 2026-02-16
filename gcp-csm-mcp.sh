@@ -1018,12 +1018,8 @@ spec:
           - containerPort: 8080
           readinessProbe:
             initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
+            tcpSocket:
               port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-readiness-probe"
           livenessProbe:
             initialDelaySeconds: 10
             httpGet:
