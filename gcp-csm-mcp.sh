@@ -101,8 +101,10 @@ Please enter number to select your choice:
  (4) Create Kubernetes cluster
  (5) Create firewall rules
  (6) Install ASM components
- (7) Configure application
- (8) Configure multi cluster ingress 
+ (7A) Deploy Hipster Shop application
+ (7B) Deploy Bank of Anthos application
+ (8A) Configure multi-cluster ingress for Hipster Shop
+ (8B) Configure multi-cluster ingress for Bank of Anthos
  (Q) Quit
 --------------------------------------------------------------
 EOF
@@ -854,7 +856,7 @@ echo
 read -n 1 -s -r -p "$ "
 ;;
 
-"7B")
+"7A")
 start=`date +%s`
 source $PROJDIR/.env
 mkdir -p $PROJDIR/cluster1 > /dev/null 2>&1
@@ -1813,7 +1815,7 @@ EOF
 for i in 1 2 
 do
     if [ $MODE -eq 1 ]; then
-        export STEP="${STEP},7Bi(${i})"   
+        export STEP="${STEP},7Ai(${i})"   
         echo
         echo "$ kubectl config use-context \$CTX # to set context" | pv -qL 100
         echo
@@ -1821,7 +1823,7 @@ do
         echo
         echo "$ kubectl -n default apply -f \$PROJDIR/cluster${i} # to configure application" | pv -qL 100
     elif [ $MODE -eq 2 ]; then
-        export STEP="${STEP},7B(${i})"   
+        export STEP="${STEP},7A(${i})"   
         export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
         export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
         export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
@@ -1849,7 +1851,7 @@ do
         echo "$ kubectl -n default apply -f $PROJDIR/cluster${i} # to configure application" | pv -qL 100
         kubectl -n default apply -f $PROJDIR/cluster${i}
     elif [ $MODE -eq 3 ]; then
-        export STEP="${STEP},7Bx(${i})"   
+        export STEP="${STEP},7Ax(${i})"   
         export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
         export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
         export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
@@ -1874,7 +1876,7 @@ do
         echo "$ kubectl -n default delete -f $PROJDIR/cluster${i} # to delete application" | pv -qL 100
         kubectl -n default delete -f $PROJDIR/cluster${i}
     else
-        export STEP="${STEP},7Bi"
+        export STEP="${STEP},7Ai"
         echo
         echo "1. Get cluster credentials" | pv -qL 100
         echo "2. Set context" | pv -qL 100
@@ -1889,13 +1891,13 @@ echo
 read -n 1 -s -r -p "$ "
 ;;
 
-"7")
+"7B")
 start=`date +%s`
 source $PROJDIR/.env
-for i in 1 2 
+for i in 1 2
 do
     if [ $MODE -eq 1 ]; then
-        export STEP="${STEP},7i(${i})"   
+        export STEP="${STEP},7Bi(${i})"   
         echo
         echo "$ gcloud --project \$PROJECT container clusters get-credentials \$CLUSTER # to get cluster credentials" | pv -qL 100
         echo
@@ -1917,7 +1919,7 @@ do
             echo "$ kubectl -n bank-of-anthos delete statefulset ledger-db # to delete DB statefulSets" | pv -qL 100
         fi
     elif [ $MODE -eq 2 ]; then
-        export STEP="${STEP},7(${i})"   
+        export STEP="${STEP},7B(${i})"   
         export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
         export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
         export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
@@ -1978,7 +1980,7 @@ do
             kubectl -n bank-of-anthos delete statefulset ledger-db
         fi
     elif [ $MODE -eq 3 ]; then
-        export STEP="${STEP},7x(${i})"   
+        export STEP="${STEP},7Bx(${i})"   
         export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
         export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
         export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
@@ -2021,11 +2023,30 @@ echo
 read -n 1 -s -r -p "$ "
 ;;
 
-"8")
+"8A")
 start=`date +%s`
 source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
-    export STEP="${STEP},8i"
+    export STEP="${STEP},8Ai"
+    echo
+    echo "$ kubectl -n default apply -f - <<EOF
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: default
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /
+    port: 8080
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n default patch service frontend -p '{\"metadata\":{\"annotations\":{\"cloud.google.com/backend-config\":\"{\\\"default\\\":\\\"frontend-backendconfig\\\"}\",\"cloud.google.com/neg\":\"{\\\"ingress\\\":true}\"}}}' # to add BackendConfig and NEG annotations" | pv -qL 100
     echo
     echo "$ kubectl -n default apply -f - <<EOF
 apiVersion: networking.gke.io/v1
@@ -2062,7 +2083,7 @@ EOF" | pv -qL 100
     echo
     echo "$ kubectl -n default describe MultiClusterIngress hipster-mci # to view ingress configuration" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
-    export STEP="${STEP},8"
+    export STEP="${STEP},8A"
     for i in 1 2 
     do
         if [ $i -eq 1 ]; then
@@ -2094,6 +2115,42 @@ elif [ $MODE -eq 2 ]; then
     gcloud config set project $PROJECT > /dev/null 2>&1
     kubectl config use-context ${CONFIG_CTX} > /dev/null 2>&1
     gcloud container clusters get-credentials ${CONFIG_CLUSTER} --zone ${CONFIG_ZONE} --project $PROJECT_ID > /dev/null 2>&1
+    echo
+    echo "$ kubectl -n default apply -f - <<EOF
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: default
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /
+    port: 8080
+EOF" | pv -qL 100
+    kubectl -n default apply -f - <<EOF
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: default
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /
+    port: 8080
+EOF
+    echo
+    echo "$ kubectl -n default patch service frontend -p '{\"metadata\":{\"annotations\":{\"cloud.google.com/backend-config\":\"{\\\"default\\\":\\\"frontend-backendconfig\\\"}\",\"cloud.google.com/neg\":\"{\\\"ingress\\\":true}\"}}}' # to add BackendConfig and NEG annotations" | pv -qL 100
+    kubectl -n default patch service frontend -p '{"metadata":{"annotations":{"cloud.google.com/backend-config":"{\"default\":\"frontend-backendconfig\"}","cloud.google.com/neg":"{\"ingress\":true}"}}}'
     echo
     echo "$ kubectl -n default apply -f - <<EOF
 apiVersion: networking.gke.io/v1
@@ -2165,7 +2222,7 @@ EOF
     echo
     echo "It may take up to 10 mins for ingress to be ready" | pv -qL 100
 elif [ $MODE -eq 3 ]; then
-    export STEP="${STEP},8x"
+    export STEP="${STEP},8Ax"
     for i in 1 2 
     do
         if [ $i -eq 1 ]; then
@@ -2198,6 +2255,9 @@ elif [ $MODE -eq 3 ]; then
     kubectl config use-context ${CONFIG_CTX} > /dev/null 2>&1
     gcloud container clusters get-credentials ${CONFIG_CLUSTER} --zone ${CONFIG_ZONE} --project $PROJECT_ID > /dev/null 2>&1
     echo
+    echo "$ kubectl -n default delete BackendConfig frontend-backendconfig # to delete BackendConfig"
+    kubectl -n default delete BackendConfig frontend-backendconfig
+    echo
     echo "$ kubectl -n default delete MultiClusterService hipster-mcs # to delete MCS"
     kubectl -n default delete MultiClusterService hipster-mcs
     echo
@@ -2208,6 +2268,266 @@ else
     echo
     echo "1. Configure Multi Cluster Service" | pv -qL 100
     echo "2. View ingress configuration" | pv -qL 100
+fi
+end=`date +%s`
+echo
+echo Execution time was `expr $end - $start` seconds.
+echo
+read -n 1 -s -r -p "$ "
+;;
+
+"8B")
+start=`date +%s`
+source $PROJDIR/.env
+if [ $MODE -eq 1 ]; then
+    export STEP="${STEP},8Bi"
+    echo
+    echo "$ kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: bank-of-anthos
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /
+    port: 8080
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n bank-of-anthos patch service frontend -p '{\"metadata\":{\"annotations\":{\"cloud.google.com/backend-config\":\"{\\\"default\\\":\\\"frontend-backendconfig\\\"}\",\"cloud.google.com/neg\":\"{\\\"ingress\\\":true}\"}}}' # to add BackendConfig and NEG annotations" | pv -qL 100
+    echo
+    echo "$ kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: bank-of-anthos-mcs
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: \"\$CONFIG_ZONE/\$CONFIG_CLUSTER\"
+  - link: \"\$REMOTE_ZONE/\$REMOTE_CLUSTER\"
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: bank-of-anthos-mci
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: bank-of-anthos-mcs
+        servicePort: 80
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n bank-of-anthos describe MultiClusterIngress bank-of-anthos-mci # to view ingress configuration" | pv -qL 100
+elif [ $MODE -eq 2 ]; then
+    export STEP="${STEP},8B"
+    for i in 1 2
+    do
+        if [ $i -eq 1 ]; then
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export CONFIG_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export CONFIG_CTX="${CTX}" > /dev/null 2>&1
+            export CONFIG_ZONE=${ZONE} > /dev/null 2>&1
+        else
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export REMOTE_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export REMOTE_CTX="${CTX}" > /dev/null 2>&1
+            export REMOTE_ZONE=${ZONE} > /dev/null 2>&1
+        fi
+    done
+    gcloud config set project $PROJECT > /dev/null 2>&1
+    kubectl config use-context ${CONFIG_CTX} > /dev/null 2>&1
+    gcloud container clusters get-credentials ${CONFIG_CLUSTER} --zone ${CONFIG_ZONE} --project $PROJECT_ID > /dev/null 2>&1
+    echo
+    echo "$ kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: bank-of-anthos
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /
+    port: 8080
+EOF" | pv -qL 100
+    kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: frontend-backendconfig
+  namespace: bank-of-anthos
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /
+    port: 8080
+EOF
+    echo
+    echo "$ kubectl -n bank-of-anthos patch service frontend -p '{\"metadata\":{\"annotations\":{\"cloud.google.com/backend-config\":\"{\\\"default\\\":\\\"frontend-backendconfig\\\"}\",\"cloud.google.com/neg\":\"{\\\"ingress\\\":true}\"}}}' # to add BackendConfig and NEG annotations" | pv -qL 100
+    kubectl -n bank-of-anthos patch service frontend -p '{"metadata":{"annotations":{"cloud.google.com/backend-config":"{\"default\":\"frontend-backendconfig\"}","cloud.google.com/neg":"{\"ingress\":true}"}}}'
+    echo
+    echo "$ kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: bank-of-anthos-mcs
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: \"$CONFIG_ZONE/$CONFIG_CLUSTER\"
+  - link: \"$REMOTE_ZONE/$REMOTE_CLUSTER\"
+EOF" | pv -qL 100
+    kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: bank-of-anthos-mcs
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: "$CONFIG_ZONE/$CONFIG_CLUSTER"
+  - link: "$REMOTE_ZONE/$REMOTE_CLUSTER"
+EOF
+    echo
+    echo "$ kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: bank-of-anthos-mci
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: bank-of-anthos-mcs
+        servicePort: 80
+EOF" | pv -qL 100
+    kubectl -n bank-of-anthos apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: bank-of-anthos-mci
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: bank-of-anthos-mcs
+        servicePort: 80
+EOF
+    sleep 30
+    echo
+    echo "$ kubectl -n bank-of-anthos describe MultiClusterIngress bank-of-anthos-mci # to view ingress configuration" | pv -qL 100
+    kubectl -n bank-of-anthos describe MultiClusterIngress bank-of-anthos-mci
+    echo
+    echo "It may take up to 10 mins for ingress to be ready" | pv -qL 100
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},8Bx"
+    for i in 1 2
+    do
+        if [ $i -eq 1 ]; then
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export CONFIG_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export CONFIG_CTX="${CTX}" > /dev/null 2>&1
+            export CONFIG_ZONE=${ZONE} > /dev/null 2>&1
+        else
+            export GCP_PROJECT=$(echo GCP_PROJECT_$(eval "echo $i")) > /dev/null 2>&1
+            export PROJECT=${!GCP_PROJECT} > /dev/null 2>&1
+            export PROJECT_ID=${PROJECT}
+            export GCP_CLUSTER=$(echo GCP_CLUSTER_$(eval "echo $i")) > /dev/null 2>&1
+            export CLUSTER=${!GCP_CLUSTER} > /dev/null 2>&1
+            export GCP_ZONE=$(echo GCP_ZONE_$(eval "echo $i")) > /dev/null 2>&1
+            export ZONE=${!GCP_ZONE} > /dev/null 2>&1
+            export CTX="gke_${PROJECT}_${ZONE}_${CLUSTER}" > /dev/null 2>&1
+            export REMOTE_CLUSTER=${CLUSTER} > /dev/null 2>&1
+            export REMOTE_CTX="${CTX}" > /dev/null 2>&1
+            export REMOTE_ZONE=${ZONE} > /dev/null 2>&1
+        fi
+    done
+    gcloud config set project $PROJECT > /dev/null 2>&1
+    kubectl config use-context ${CONFIG_CTX} > /dev/null 2>&1
+    gcloud container clusters get-credentials ${CONFIG_CLUSTER} --zone ${CONFIG_ZONE} --project $PROJECT_ID > /dev/null 2>&1
+    echo
+    echo "$ kubectl -n bank-of-anthos delete BackendConfig frontend-backendconfig # to delete BackendConfig"
+    kubectl -n bank-of-anthos delete BackendConfig frontend-backendconfig
+    echo
+    echo "$ kubectl -n bank-of-anthos delete MultiClusterService bank-of-anthos-mcs # to delete MCS"
+    kubectl -n bank-of-anthos delete MultiClusterService bank-of-anthos-mcs
+    echo
+    echo "$ kubectl -n bank-of-anthos delete MultiClusterIngress bank-of-anthos-mci # to delete MCI"
+    kubectl -n bank-of-anthos delete MultiClusterIngress bank-of-anthos-mci
+else
+    export STEP="${STEP},8Bi"
+    echo
+    echo "1. Configure BackendConfig with health checks for Bank of Anthos" | pv -qL 100
+    echo "2. Configure Multi Cluster Service for Bank of Anthos" | pv -qL 100
+    echo "3. View ingress configuration" | pv -qL 100
 fi
 end=`date +%s`
 echo
