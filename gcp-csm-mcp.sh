@@ -66,12 +66,12 @@ else
 cat <<EOF > $PROJDIR/.env
 export GCP_PROJECT=$GCP_PROJECT
 export GCP_PROJECT_1=$GCP_PROJECT
-export GCP_CLUSTER_1=hipster-dcp-1
+export GCP_CLUSTER_1=gcp-cluster-1
 export GCP_REGION_1=europe-west4
 export GCP_ZONE_1=europe-west4-a
 export GCP_MACHINE_1=e2-standard-2
 export GCP_PROJECT_2=$GCP_PROJECT
-export GCP_CLUSTER_2=hipster-dcp-2
+export GCP_CLUSTER_2=gcp-cluster-2
 export GCP_REGION_2=europe-west3
 export GCP_ZONE_2=europe-west3-a
 export GCP_MACHINE_2=e2-standard-2
